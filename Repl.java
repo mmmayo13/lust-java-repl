@@ -29,6 +29,9 @@ class Repl {
      */
     public Repl() throws IOException, InterruptedException {
 
+        // Lingering file cleanup
+        cleanup();
+
         // Clear screen
         for (int i = 0; i < 50; ++i)
 			System.out.println();
@@ -44,6 +47,7 @@ class Repl {
         // Loop on console input
         while (true)
             this.console();
+
     }
 
     /**
@@ -79,6 +83,10 @@ class Repl {
 
         // Reset snippet
         snippet.clear();
+
+        // Always cleanup
+        cleanup();
+
     }
 
     /**
@@ -103,6 +111,7 @@ class Repl {
             if (i == version.size() - 1)
                 jvm = version.get(i);
         return jvm;
+
     }
 
     /**
@@ -123,6 +132,7 @@ class Repl {
         out.println("\t}");
         out.println("}");
         out.close();
+
     }
 
     /**
@@ -130,10 +140,25 @@ class Repl {
      */
     private void compileAndExecute() throws IOException, InterruptedException {
 
+        Boolean compileError = false;
+
         // Compile
         Runtime rt = Runtime.getRuntime();
         String[] cmd1 = {"javac", "Temp.java"};
         Process p1 = rt.exec(cmd1);
+        String errCompile = null;
+
+        BufferedReader stdErrorCompile = new BufferedReader(new
+            InputStreamReader(p1.getErrorStream()));
+
+        // Check for compile time errors and output
+        if ((errCompile = stdErrorCompile.readLine()) != null) {
+            compileError = true;
+            System.out.println();
+            System.out.println(errCompile);
+            while ((errCompile = stdErrorCompile.readLine()) != null)
+                System.out.println(errCompile);
+        }
 
         // Wait for compile to finish
         p1.waitFor();
@@ -141,16 +166,33 @@ class Repl {
         // Execute
         String[] cmd2 = {"java", "Temp"};
         Process p2 = rt.exec(cmd2);
-        String s = null;
+        String result = null;
+        String errRun = null;
 
         BufferedReader stdInput = new BufferedReader(new
-             InputStreamReader(p2.getInputStream()));
+            InputStreamReader(p2.getInputStream()));
 
-        // Output results
+        BufferedReader stdErrorRun = new BufferedReader(new
+            InputStreamReader(p2.getErrorStream()));
+
+        // Runtime errors
+        if ((errRun = stdErrorRun.readLine()) != null && compileError == false) {
+            System.out.println();
+            System.out.println(errRun);
+            while ((errRun = stdErrorRun.readLine()) != null)
+                System.out.println(errRun);
+        }
+
+        // Results
+        else if (compileError == false) {
+            System.out.println();
+            while ((result = stdInput.readLine()) != null)
+                System.out.println(result);
+        }
+
         System.out.println();
-        while ((s = stdInput.readLine()) != null)
-            System.out.println(s);
-        System.out.println();
+        compileError = false;
+
     }
 
     /**
